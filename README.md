@@ -1,70 +1,140 @@
-# Getting Started with Create React App
+# accepts
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+[![NPM Version][npm-version-image]][npm-url]
+[![NPM Downloads][npm-downloads-image]][npm-url]
+[![Node.js Version][node-version-image]][node-version-url]
+[![Build Status][github-actions-ci-image]][github-actions-ci-url]
+[![Test Coverage][coveralls-image]][coveralls-url]
 
-## Available Scripts
+Higher level content negotiation based on [negotiator](https://www.npmjs.com/package/negotiator).
+Extracted from [koa](https://www.npmjs.com/package/koa) for general use.
 
-In the project directory, you can run:
+In addition to negotiator, it allows:
 
-### `npm start`
+- Allows types as an array or arguments list, ie `(['text/html', 'application/json'])`
+  as well as `('text/html', 'application/json')`.
+- Allows type shorthands such as `json`.
+- Returns `false` when no types match
+- Treats non-existent headers as `*`
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Installation
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+This is a [Node.js](https://nodejs.org/en/) module available through the
+[npm registry](https://www.npmjs.com/). Installation is done using the
+[`npm install` command](https://docs.npmjs.com/getting-started/installing-npm-packages-locally):
 
-### `npm test`
+```sh
+$ npm install accepts
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## API
 
-### `npm run build`
+```js
+var accepts = require('accepts')
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### accepts(req)
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Create a new `Accepts` object for the given `req`.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+#### .charset(charsets)
 
-### `npm run eject`
+Return the first accepted charset. If nothing in `charsets` is accepted,
+then `false` is returned.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+#### .charsets()
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Return the charsets that the request accepts, in the order of the client's
+preference (most preferred first).
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+#### .encoding(encodings)
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Return the first accepted encoding. If nothing in `encodings` is accepted,
+then `false` is returned.
 
-## Learn More
+#### .encodings()
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Return the encodings that the request accepts, in the order of the client's
+preference (most preferred first).
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+#### .language(languages)
 
-### Code Splitting
+Return the first accepted language. If nothing in `languages` is accepted,
+then `false` is returned.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+#### .languages()
 
-### Analyzing the Bundle Size
+Return the languages that the request accepts, in the order of the client's
+preference (most preferred first).
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+#### .type(types)
 
-### Making a Progressive Web App
+Return the first accepted type (and it is returned as the same text as what
+appears in the `types` array). If nothing in `types` is accepted, then `false`
+is returned.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+The `types` array can contain full MIME types or file extensions. Any value
+that is not a full MIME types is passed to `require('mime-types').lookup`.
 
-### Advanced Configuration
+#### .types()
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Return the types that the request accepts, in the order of the client's
+preference (most preferred first).
 
-### Deployment
+## Examples
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+### Simple type negotiation
 
-### `npm run build` fails to minify
+This simple example shows how to use `accepts` to return a different typed
+respond body based on what the client wants to accept. The server lists it's
+preferences in order and will get back the best match between the client and
+server.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```js
+var accepts = require('accepts')
+var http = require('http')
+
+function app (req, res) {
+  var accept = accepts(req)
+
+  // the order of this list is significant; should be server preferred order
+  switch (accept.type(['json', 'html'])) {
+    case 'json':
+      res.setHeader('Content-Type', 'application/json')
+      res.write('{"hello":"world!"}')
+      break
+    case 'html':
+      res.setHeader('Content-Type', 'text/html')
+      res.write('<b>hello, world!</b>')
+      break
+    default:
+      // the fallback is text/plain, so no need to specify it above
+      res.setHeader('Content-Type', 'text/plain')
+      res.write('hello, world!')
+      break
+  }
+
+  res.end()
+}
+
+http.createServer(app).listen(3000)
+```
+
+You can test this out with the cURL program:
+```sh
+curl -I -H'Accept: text/html' http://localhost:3000/
+```
+
+## License
+
+[MIT](LICENSE)
+
+[coveralls-image]: https://badgen.net/coveralls/c/github/jshttp/accepts/master
+[coveralls-url]: https://coveralls.io/r/jshttp/accepts?branch=master
+[github-actions-ci-image]: https://badgen.net/github/checks/jshttp/accepts/master?label=ci
+[github-actions-ci-url]: https://github.com/jshttp/accepts/actions/workflows/ci.yml
+[node-version-image]: https://badgen.net/npm/node/accepts
+[node-version-url]: https://nodejs.org/en/download
+[npm-downloads-image]: https://badgen.net/npm/dm/accepts
+[npm-url]: https://npmjs.org/package/accepts
+[npm-version-image]: https://badgen.net/npm/v/accepts
